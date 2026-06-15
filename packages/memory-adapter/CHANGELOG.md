@@ -1,5 +1,12 @@
 # @better-auth/memory-adapter
 
+## 1.7.0-beta.6
+
+### Patch Changes
+
+- Updated dependencies [[`aedcb97`](https://github.com/better-auth/better-auth/commit/aedcb974f055c3514fe0464dc53d71d45a8a1725)]:
+  - @better-auth/core@1.7.0-beta.6
+
 ## 1.7.0-beta.5
 
 ### Patch Changes

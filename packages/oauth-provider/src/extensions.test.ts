@@ -47,7 +47,7 @@ describe("oauth-provider extensions", async () => {
 		init(ctx) {
 			extendOAuthProvider(ctx, {
 				grants: {
-					[extensionGrant]: async ({ ctx, grantType, provider }) => {
+					[extensionGrant]: async ({ ctx, provider }) => {
 						observedCustomParam = (ctx.body as { custom_param?: string })
 							.custom_param;
 						if (!grantUser) {
@@ -58,7 +58,6 @@ describe("oauth-provider extensions", async () => {
 						}
 						const { client, confirmation } = await provider.authenticateClient({
 							scopes: ["openid", "email", "vc"],
-							grantType,
 						});
 						return provider.issueTokens({
 							client,
@@ -86,7 +85,7 @@ describe("oauth-provider extensions", async () => {
 					// Issues an opaque access token (no resource -> no audience), so
 					// introspection re-derives extension claims through the resolver
 					// instead of returning a signed JWT payload verbatim.
-					[extensionOpaqueGrant]: async ({ grantType, provider }) => {
+					[extensionOpaqueGrant]: async ({ provider }) => {
 						if (!grantUser) {
 							throw new APIError("BAD_REQUEST", {
 								error: "invalid_request",
@@ -95,7 +94,6 @@ describe("oauth-provider extensions", async () => {
 						}
 						const { client } = await provider.authenticateClient({
 							scopes: ["openid", "email", "vc"],
-							grantType,
 						});
 						return provider.issueTokens({
 							client,
@@ -109,7 +107,7 @@ describe("oauth-provider extensions", async () => {
 					// Sender-constrains an opaque access token (no resource). The
 					// confirmation is persisted on the opaque-token row (RFC 7800 `cnf`)
 					// and surfaced at introspection, not silently dropped.
-					[extensionOpaqueBoundGrant]: async ({ grantType, provider }) => {
+					[extensionOpaqueBoundGrant]: async ({ provider }) => {
 						if (!grantUser) {
 							throw new APIError("BAD_REQUEST", {
 								error: "invalid_request",
@@ -118,7 +116,6 @@ describe("oauth-provider extensions", async () => {
 						}
 						const { client } = await provider.authenticateClient({
 							scopes: ["openid", "email", "vc"],
-							grantType,
 						});
 						return provider.issueTokens({
 							client,
@@ -398,6 +395,33 @@ describe("oauth-provider extensions", async () => {
 		});
 	});
 
+	it("rejects a pre-verified client whose id differs from the authenticated client_id", async () => {
+		const resolvedClient = {
+			clientId: "resolved-client",
+			public: false,
+			tokenEndpointAuthMethod: extensionAuthMethod,
+		} as SchemaClient<Scope[]>;
+		await expect(
+			validateClientCredentials(
+				{} as Parameters<typeof validateClientCredentials>[0],
+				{} as Parameters<typeof validateClientCredentials>[1],
+				"authenticated-client",
+				undefined,
+				undefined,
+				resolvedClient,
+				undefined,
+				extensionAuthMethod,
+			),
+		).rejects.toMatchObject({
+			statusCode: 400,
+			body: {
+				error: "invalid_client",
+				error_description:
+					"client authentication resolved a different client than it authenticated",
+			},
+		});
+	});
+
 	it("rejects invalid direct extension options during provider setup", () => {
 		expect(() =>
 			oauthProvider({
@@ -546,6 +570,36 @@ describe("oauth-provider extensions", async () => {
 		expect(introspection.error).toBeNull();
 		expect(introspection.data?.active).toBe(true);
 		expect(introspection.data?.extension_access_claim).toBe("extension-access");
+	});
+
+	it("gates issuance on the dispatched grant, not a client-chosen one", async () => {
+		// Registered for the opaque grant, but invoking the resource grant.
+		const oauthClient = await auth.api.adminCreateOAuthClient({
+			headers,
+			body: {
+				token_endpoint_auth_method: extensionAuthMethod,
+				grant_types: [extensionOpaqueGrant],
+				scope: "openid email vc",
+				type: "web",
+			},
+		});
+		const response = await client.$fetch("/oauth2/token", {
+			method: "POST",
+			body: new URLSearchParams({
+				grant_type: extensionGrant,
+				client_id: oauthClient!.client_id,
+				client_assertion_type: extensionAssertionType,
+				client_assertion: `assertion:${oauthClient!.client_id}`,
+				resource,
+			}),
+			headers: {
+				"content-type": "application/x-www-form-urlencoded",
+			},
+		});
+		expect(response.error?.status).toBe(400);
+		expect((response.error as { error?: string } | undefined)?.error).toBe(
+			"unauthorized_client",
+		);
 	});
 
 	it("rejects unsupported extension grant types before credential handling", async () => {

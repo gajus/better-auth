@@ -563,6 +563,16 @@ export async function validateClientCredentials(
 		});
 	}
 
+	// Reject a resolved client whose id differs from the authenticated one; a
+	// strategy must not let issuance run under a client it never proved.
+	if (preVerifiedClient && preVerifiedClient.clientId !== clientId) {
+		throw new APIError("BAD_REQUEST", {
+			error_description:
+				"client authentication resolved a different client than it authenticated",
+			error: "invalid_client",
+		});
+	}
+
 	// Enforce registered auth method for assertion/pre-verified methods.
 	if (preVerifiedClient && authMethod) {
 		const registeredAuthMethod =

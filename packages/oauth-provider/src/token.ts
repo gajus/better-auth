@@ -169,7 +169,7 @@ export function getOAuthProviderApi(
 				clientSecret,
 				request?.scopes,
 				preVerifiedClient,
-				request?.grantType ?? grantType,
+				grantType,
 				authMethod,
 			);
 			return {

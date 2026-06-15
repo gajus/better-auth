@@ -1417,10 +1417,9 @@ export const customOAuthExtension = () =>
       extendOAuthProvider(ctx, {
         grants: {
           "urn:example:params:oauth:grant-type:custom": async ({
-            grantType,
             provider,
           }) => {
-            const { client } = await provider.authenticateClient({ grantType });
+            const { client } = await provider.authenticateClient();
             return provider.issueTokens({
               client,
               scopes: ["openid"],

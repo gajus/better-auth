@@ -111,10 +111,6 @@ export interface OAuthClientAuthenticationRequest {
 	 */
 	scopes?: string[];
 	/**
-	 * Grant type to enforce for the registered client.
-	 */
-	grantType?: GrantType;
-	/**
 	 * Set to `false` for public extension grants that only require client_id.
 	 *
 	 * @default true

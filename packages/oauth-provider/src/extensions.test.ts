@@ -7,6 +7,7 @@ import type { BetterAuthPlugin, User } from "better-auth/types";
 import { decodeJwt } from "jose";
 import { describe, expect, it } from "vitest";
 import { oauthProviderClient } from "./client";
+import { validateClientCredentials } from "./client-authentication";
 import { extendOAuthProvider } from "./extensions";
 import { oauthProvider } from "./oauth";
 import { getOAuthProviderApi } from "./token";
@@ -16,7 +17,6 @@ import type {
 	SchemaClient,
 	Scope,
 } from "./types";
-import { validateClientCredentials } from "./utils";
 import { consumeClientAssertion } from "./utils/client-assertion";
 
 describe("oauth-provider extensions", async () => {
